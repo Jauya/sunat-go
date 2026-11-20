@@ -46,6 +46,11 @@ func BuildInvoiceXML(inv Invoice) ([]byte, error) {
 	fmt.Fprintf(&buf, `<cac:AccountingCustomerParty><cac:Party><cac:PartyIdentification><cbc:ID schemeID="%s">%s</cbc:ID></cac:PartyIdentification><cac:PartyLegalEntity><cbc:RegistrationName>%s</cbc:RegistrationName></cac:PartyLegalEntity></cac:Party></cac:AccountingCustomerParty>`,
 		esc(inv.Client.TipoDoc), esc(inv.Client.NumDoc), esc(inv.Client.RazonSocial))
 
+	// PaymentTerms (required for Factura 01 in UBL 2.1)
+	if inv.TipoDoc == "01" {
+		buf.WriteString(`<cac:PaymentTerms><cbc:ID>FormaPago</cbc:ID><cbc:PaymentMeansID>Contado</cbc:PaymentMeansID></cac:PaymentTerms>`)
+	}
+
 	// TaxTotal
 	fmt.Fprintf(&buf, `<cac:TaxTotal><cbc:TaxAmount currencyID="%s">%.2f</cbc:TaxAmount><cac:TaxSubtotal><cbc:TaxableAmount currencyID="%s">%.2f</cbc:TaxableAmount><cbc:TaxAmount currencyID="%s">%.2f</cbc:TaxAmount><cac:TaxCategory><cac:TaxScheme><cbc:ID>1000</cbc:ID><cbc:Name>IGV</cbc:Name><cbc:TaxTypeCode>VAT</cbc:TaxTypeCode></cac:TaxScheme></cac:TaxCategory></cac:TaxSubtotal></cac:TaxTotal>`,
 		esc(currency), inv.TotalImpuestos, esc(currency), inv.MtoOperGravada, esc(currency), inv.MtoIGV)

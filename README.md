@@ -45,8 +45,10 @@ func main() {
 
 - [x] Autenticación OAuth2 con caché por `scope`
 - [x] Cliente SIRE (`GetPeriods`)
-- [x] Generador XML UBL 2.1 (`Invoice`)
-- [x] Cliente SOAP `sendBill` + empaquetado `.zip`
-- [ ] Firmador XMLDSig SHA-256 (`.p12` / `.pfx`) en Go puro
+- [x] Generador XML UBL 2.1 (`Invoice` con `PaymentTerms`)
+- [x] Firmador XMLDSig RSA-SHA256 en Go puro (`xmldsig`)
+- [x] Cliente SOAP `sendBill` + empaquetado `.zip` + parser de CDR (`soap`)
+- [x] Demo end-to-end contra SUNAT Beta (`go run ./cmd/beta-demo`)
+- [ ] Soporte de archivos `.p12` / `.pfx` directo (PKCS#12)
 - [ ] Cliente GRE (Guías de Remisión Electrónica REST)
 - [ ] Notas de Crédito (`07`) y Débito (`08`)
