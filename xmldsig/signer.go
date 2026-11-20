@@ -11,6 +11,8 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -80,7 +82,8 @@ func (s *Signer) SignUBL(xmlBytes []byte) ([]byte, error) {
 	digestSum := sha256.Sum256([]byte(docForDigest))
 	digestB64 := base64.StdEncoding.EncodeToString(digestSum[:])
 
-	signedInfoForHash := fmt.Sprintf(`<ds:SignedInfo xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2" xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2" xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:ext="urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2"><ds:CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"></ds:CanonicalizationMethod><ds:SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"></ds:SignatureMethod><ds:Reference URI=""><ds:Transforms><ds:Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"></ds:Transform></ds:Transforms><ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"></ds:DigestMethod><ds:DigestValue>%s</ds:DigestValue></ds:Reference></ds:SignedInfo>`, digestB64)
+	nsAttrs := extractRootNamespaces(docForDigest)
+	signedInfoForHash := fmt.Sprintf(`<ds:SignedInfo %s><ds:CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"></ds:CanonicalizationMethod><ds:SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"></ds:SignatureMethod><ds:Reference URI=""><ds:Transforms><ds:Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"></ds:Transform></ds:Transforms><ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"></ds:DigestMethod><ds:DigestValue>%s</ds:DigestValue></ds:Reference></ds:SignedInfo>`, nsAttrs, digestB64)
 
 	signedInfoSum := sha256.Sum256([]byte(signedInfoForHash))
 	sigBytes, err := rsa.SignPKCS1v15(rand.Reader, s.key, crypto.SHA256, signedInfoSum[:])
@@ -97,4 +100,31 @@ func (s *Signer) SignUBL(xmlBytes []byte) ([]byte, error) {
 
 	signed := bytes.Replace(xmlBytes, []byte(target), []byte("<ext:ExtensionContent>"+signatureBlock+"</ext:ExtensionContent>"), 1)
 	return signed, nil
+}
+
+var xmlnsRe = regexp.MustCompile(`xmlns(?::[A-Za-z0-9_-]+)?="[^"]*"`)
+
+func extractRootNamespaces(doc string) string {
+	start := strings.IndexByte(doc, '<')
+	end := strings.IndexByte(doc, '>')
+	nsMap := map[string]string{
+		"xmlns:ds": `xmlns:ds="http://www.w3.org/2000/09/xmldsig#"`,
+	}
+	if start != -1 && end > start {
+		rootTag := doc[start:end]
+		for _, m := range xmlnsRe.FindAllString(rootTag, -1) {
+			k := strings.SplitN(m, "=", 2)[0]
+			nsMap[k] = m
+		}
+	}
+	keys := make([]string, 0, len(nsMap))
+	for k := range nsMap {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	parts := make([]string, 0, len(keys))
+	for _, k := range keys {
+		parts = append(parts, nsMap[k])
+	}
+	return strings.Join(parts, " ")
 }
