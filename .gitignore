@@ -1,0 +1,7 @@
+.env
+*.p12
+*.pfx
+*.pem
+*.key
+*.zip
+bin/
